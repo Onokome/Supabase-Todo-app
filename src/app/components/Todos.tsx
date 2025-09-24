@@ -20,11 +20,14 @@ export default function Todos({ user }: Props) {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [newTask, setNewTask] = useState("");
   const [loading, setLoading] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
     fetchTodos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
   async function fetchTodos() {
@@ -32,7 +35,7 @@ export default function Todos({ user }: Props) {
     setErrorMessage(null);
 
     const { data, error } = await supabase
-      .from<Todo>("todos")
+      .from("todos")
       .select("*")
       .eq("user_id", user.id)
       .order("inserted_at", { ascending: false });
@@ -45,7 +48,7 @@ export default function Todos({ user }: Props) {
       return;
     }
 
-    setTodos(data ?? []);
+    setTodos((data as Todo[]) ?? []);
   }
 
   async function addTodo(e?: React.FormEvent) {
@@ -55,8 +58,8 @@ export default function Todos({ user }: Props) {
     setErrorMessage(null);
 
     const { data, error } = await supabase
-      .from<Todo>("todos")
-      .insert([{ task: newTask.trim(), user_id: user.id }])
+      .from("todos")
+      .insert([{ task: newTask.trim() }])
       .select();
 
     setLoading(false);
@@ -67,14 +70,14 @@ export default function Todos({ user }: Props) {
       return;
     }
 
-    if (data) setTodos((prev) => [...prev, ...data]);
+    if (data) setTodos((prev) => [ ...(data as Todo[]), ...prev]);
     setNewTask("");
   }
 
   async function toggleComplete(id: string, current: boolean) {
     setErrorMessage(null);
     const { error } = await supabase
-      .from<Todo>("todos")
+      .from("todos")
       .update({ is_complete: !current })
       .eq("id", id)
       .select();
@@ -87,9 +90,42 @@ export default function Todos({ user }: Props) {
     await fetchTodos();
   }
 
+  function startEdit(todo: Todo) {
+    setEditingId(todo.id);
+    setEditingText(todo.task);
+  }
+
+  async function saveEdit(id: string) {
+    if (!editingText.trim()) return;
+    setErrorMessage(null);
+    setLoading(true);
+
+    try {
+      const { error } = await supabase
+        .from("todos")
+        .update({ task: editingText.trim() })
+        .eq("id", id)
+        .select();
+
+      if (error) throw error;
+
+      setTodos((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, task: editingText.trim() } : t))
+      );
+
+      setEditingId(null);
+      setEditingText("");
+      setLoading(false);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (err:any) {
+      console.error("Update task error", err);
+      setErrorMessage(err.message);
+    }
+  }
+
   async function deleteTodo(id: string) {
     setErrorMessage(null);
-    const { error } = await supabase.from<Todo>("todos").delete().eq("id", id);
+    const { error } = await supabase.from("todos").delete().eq("id", id);
 
     if (error) {
       console.error("Delete todo error", error);
@@ -101,7 +137,7 @@ export default function Todos({ user }: Props) {
   }
 
   return (
-    <div className="p-4 max-w-md mx-auto">
+    <div className="p-4 mx-auto ">
       <h2 className="text-xl font-bold mb-4">My Todos</h2>
 
       <form onSubmit={addTodo} className="flex gap-2 mb-4">
@@ -127,28 +163,61 @@ export default function Todos({ user }: Props) {
       <ul>
         {todos.map((todo) => (
           <li key={todo.id} className="flex items-center justify-between mb-2">
-            <span
-              onClick={() => toggleComplete(todo.id, todo.is_complete)}
-              className={`cursor-pointer ${
-                todo.is_complete ? "line-through text-gray-500" : ""
-              }`}
-            >
-              {todo.task}
-            </span>
+            {editingId === todo.id ? (
+              <input
+                className="border px-2 flex-1 mr-2"
+                value={editingText}
+                onChange={(e) => setEditingText(e.target.value)}
+              />
+            ) : (
+              <span
+                className={`cursor-pointer ${
+                  todo.is_complete ? "line-through text-gray-500" : ""
+                }`}
+              >
+                {todo.task}
+              </span>
+            )}
 
             <div className="flex gap-2 items-center">
-              <button
-                onClick={() => toggleComplete(todo.id, todo.is_complete)}
-                className="text-sm px-2 py-1 border rounded"
-              >
-                {todo.is_complete ? "Undo" : "Done"}
-              </button>
-              <button
-                onClick={() => deleteTodo(todo.id)}
-                className="text-red-500 text-sm"
-              >
-                Delete
-              </button>
+              {editingId === todo.id ? (
+                <>
+                  <button
+                    onClick={() => saveEdit(todo.id)}
+                    className="text-sm px-2 py-1 bg-green-500 text-white rounded"
+                    disabled={loading}
+                  >
+                    {loading ? 'Saving' : 'Save'}
+                  </button>
+                  <button
+                    onClick={() => setEditingId(null)}
+                    className="text-sm px-2 py-1 border rounded"
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => startEdit(todo)}
+                    className="text-sm px-2 py-1 border rounded"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => toggleComplete(todo.id, todo.is_complete)}
+                    className="text-sm px-2 py-1 border rounded"
+                  >
+                    {todo.is_complete ? "Undo" : "Done"}
+                  </button>
+                  <button
+                    onClick={() => deleteTodo(todo.id)}
+                    className="text-red-500 text-sm"
+                  >
+                    Delete
+                  </button>
+                </>
+              )}
             </div>
           </li>
         ))}
