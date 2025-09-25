@@ -4,15 +4,20 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabaseClient";
 import Image from "next/image";
-import Vector from '@/assets/images/shape.svg'
+import Vector from "@/assets/images/shape.svg";
+import GoogleIcon from "@/assets/images/google-colored.svg";
 import Link from "next/link";
+import { Eye, EyeClosed } from "lucide-react";
 
 export default function SigninPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-   const router = useRouter();
+  const router = useRouter();
+
+  const togglePasswordVisibility = () => setShowPassword(!showPassword);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,8 +30,9 @@ export default function SigninPage() {
     });
     if (error) {
       setError(error.message);
+      setIsSubmitting(false);
     } else {
-         router.replace("/dashboard")
+      router.replace("/dashboard");
       setIsSubmitting(false);
     }
   };
@@ -46,114 +52,111 @@ export default function SigninPage() {
   }
 
   return (
-    <div className="w-full min-h-screen bg-[#F0F4F3] relative">
-        <Image
-            src={Vector}
-            alt="Eclipse Vector image"
-            width={200}
-            height={100}
-            className="absolute top-0 left-0"
-        />
-       <main className="pt-32 px-4 md:max-w-md lg:max-w-lg mx-auto">
-            <div className="">
-              <h1 className="font-bold text-center">Welcome Back!</h1>
-              <p className="text-center">Sign in to continue</p>
-            </div>
+    <div
+      className="w-full bg-[#F0F4F3] min-h-screen bg-left-top bg-no-repeat bg-auto pb-2"
+      style={{ backgroundImage: `url(${Vector.src})` }}
+    >
+      <main className="pt-20 px-4 md:max-w-md lg:max-w-lg mx-auto">
+        <div className="">
+          <h1 className="font-bold text-center text-2xl">Welcome Back!</h1>
+          <p className="text-center text-lg">
+            Sign in to continue managing your tasks
+          </p>
+        </div>
 
-               {/* Google Sign-in Button */}
+        <form onSubmit={handleSignIn} className="mt-6 mb-4">
+          <div className="mb-4">
+            <label htmlFor="email" className="sr-only">
+              Email Address
+            </label>
+            <input
+              id="email"
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="bg-white rounded-3xl py-3 px-4 block w-full border border-gray-300 focus:border-[#50C2C9] focus:ring-2 focus:ring-[#50C2C9] focus:outline-none transition-colors"
+              required
+              aria-required="true"
+              autoComplete="email"
+            />
+          </div>
+
+          <div className="mb-4 relative">
+            <label htmlFor="password" className="sr-only">
+              Password
+            </label>
+            <input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              placeholder="Password"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+              }}
+              className="bg-white rounded-3xl py-3 px-4 block w-full border border-gray-300 focus:border-[#50C2C9] focus:ring-2 focus:ring-[#50C2C9] focus:outline-none transition-colors"
+              required
+              aria-required="true"
+            />
             <button
-              onClick={handleGoogleSignIn}
-              disabled={isSubmitting}
-              className="w-full flex justify-center items-center gap-2 rounded-md p-2 mt-6 border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              type="button"
+              onClick={togglePasswordVisibility}
+              className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#50C2C9] rounded p-1"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-pressed={showPassword}
             >
-              <Image 
-                src="/google-icon.svg" 
-                alt="Google" 
-                width={20} 
-                height={20} 
-              />
-              Sign in with Google
+              {showPassword ? <EyeClosed size={15} /> : <Eye size={15} />}
             </button>
-
-            <div className="flex items-center my-6">
-              <div className="flex-grow border-t border-gray-300"></div>
-              <span className="mx-4 text-gray-500">or</span>
-              <div className="flex-grow border-t border-gray-300"></div>
-            </div>
-
-            <form onSubmit={handleSignIn} className="mb-4">
-              <input
-                type="email"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="bg-white rounded-3xl py-2 px-4 block mb-4 w-full"
-                required
-              />
-              <input
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="bg-white rounded-3xl py-2 px-4 block mb-4 w-full"
-                required
-              />
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full flex justify-center items-center gap-2 rounded-md p-2 mt-6 text-white bg-[#50C2C9] hover:bg-[#3da7ae] disabled:bg-gray-400"
-              >
-                {isSubmitting ? (
-                  <>
-                    <span className="animate-spin inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
-                    Signing in...
-                  </>
-                ) : (
-                  "Sign In"
-                )}
-              </button>
-            </form>
-
-            {error && (
-              <p className="text-center text-sm text-red-500">{error}</p>
+          </div>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full flex justify-center items-center gap-2 rounded-md p-3 mt-6 text-white bg-[#50C2C9] font-medium hover:cursor-pointer hover:bg-[#3da7ae]  transition-colors "
+          >
+            {isSubmitting ? (
+              <>
+                <span className="animate-spin inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+                Signing in...
+              </>
+            ) : (
+              "Sign In"
             )}
-            
-            <p className="mt-2 text-center mx-auto">
-              Don&apos;t have an account?{" "}
-              <Link href="/" className="text-blue-600 underline">
-                Sign Up
-              </Link>
-            </p>
+          </button>
+        </form>
 
-        </main> 
+        <div className="flex items-center my-6" aria-hidden="true">
+          <div className="flex-grow border-t border-gray-300"></div>
+          <span className="mx-4 text-gray-500">or</span>
+          <div className="flex-grow border-t border-gray-300"></div>
+        </div>
 
-      <form onSubmit={handleSignIn} className="space-y-4">
-        <h1 className="text-xl font-bold">Sign in</h1>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="border p-2 w-full"
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="border p-2 w-full"
-          required
-        />
         <button
-          type="submit"
-          className="bg-green-600 text-white p-2 rounded w-full"
+          onClick={handleGoogleSignIn}
+          className="w-full px-4 py-3 mt-2 bg-[#6a6e6dff] text-white rounded flex items-center justify-center gap-3 hover:cursor-pointer hover:bg-[#5a5e5d] focus:outline-none focus:ring-2 focus:ring-[#6a6e6d] focus:ring-offset-2 transition-colors"
+          aria-label="Sign up with Google"
         >
-          Sign in
+          <Image
+            src={GoogleIcon}
+            alt=""
+            width={20}
+            height={10}
+            aria-hidden="true"
+          />
+          Sign up with Google
         </button>
-        {error && <p className="text-red-500">{error}</p>}
-      </form>
+
+        {error && <p className="text-center text-sm text-red-500">{error}</p>}
+
+        <p className="mt-6 text-center mx-auto text-gray-600">
+          Don&apos;t have an account?{" "}
+          <Link
+            href="/"
+            className="text-[#50C2C9] hover:text-[#3da7ae] underline font-medium focus:outline-none focus:ring-2 focus:ring-[#50C2C9] focus:ring-offset-2 rounded p-1 transition-colors"
+          >
+            Sign Up
+          </Link>
+        </p>
+      </main>
     </div>
   );
 }

@@ -34,21 +34,22 @@ export default function Todos({ user }: Props) {
     setLoading(true);
     setErrorMessage(null);
 
-    const { data, error } = await supabase
-      .from("todos")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("inserted_at", { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from("todos")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("inserted_at", { ascending: false });
 
-    setLoading(false);
-
-    if (error) {
+      if (error) throw error;
+      setTodos((data as Todo[]) ?? []);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
       console.error("Fetch todos error", error);
       setErrorMessage(error.message);
-      return;
+    } finally {
+      setLoading(false);
     }
-
-    setTodos((data as Todo[]) ?? []);
   }
 
   async function addTodo(e?: React.FormEvent) {
@@ -70,7 +71,7 @@ export default function Todos({ user }: Props) {
       return;
     }
 
-    if (data) setTodos((prev) => [ ...(data as Todo[]), ...prev]);
+    if (data) setTodos((prev) => [...(data as Todo[]), ...prev]);
     setNewTask("");
   }
 
@@ -116,8 +117,8 @@ export default function Todos({ user }: Props) {
       setEditingId(null);
       setEditingText("");
       setLoading(false);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (err:any) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (err: any) {
       console.error("Update task error", err);
       setErrorMessage(err.message);
     }
@@ -137,91 +138,130 @@ export default function Todos({ user }: Props) {
   }
 
   return (
-    <div className="p-4 mx-auto ">
-      <h2 className="text-xl font-bold mb-4">My Todos</h2>
+    <div className=" w-full mx-auto">
+      <h1 className="text-xl font-bold text-gray-900 mb-2">Your tasks</h1>
 
-      <form onSubmit={addTodo} className="flex gap-2 mb-4">
+      <form onSubmit={addTodo} className="flex gap-2 md:gap-10 mb-4">
         <input
-          className="border rounded px-2 flex-1"
           type="text"
-          placeholder="New task..."
+          placeholder="What needs to be done?"
           value={newTask}
           onChange={(e) => setNewTask(e.target.value)}
+          className="max-w-lg flex-1 bg-white rounded-2xl py-3 px-4 border border-gray-300 focus:border-[#50C2C9] focus:ring-2 focus:ring-[#50C2C9] focus:outline-none transition-colors"
+          disabled={loading}
+          aria-label="New task description"
         />
         <button
           type="submit"
-          className="bg-blue-500 text-white px-3 py-1 rounded"
-          disabled={loading}
+          className="bg-[#50C2C9] text-white px-3 py-3 md:px-6 rounded-2xl font-medium hover:bg-[#3da7ae] hover:cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#50C2C9] focus:ring-offset-2 disabled:opacity-50 transition-colors"
+          disabled={loading || !newTask.trim()}
         >
-          Add
+          {loading ? "Adding..." : "Add"}
         </button>
       </form>
 
-      {errorMessage && <p className="text-red-500 mb-2">{errorMessage}</p>}
-      {loading && <p className="text-sm text-gray-500 mb-2">Loading…</p>}
+      {errorMessage && (
+        <div
+          className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4"
+          role="alert"
+        >
+          {errorMessage}
+        </div>
+      )}
 
-      <ul>
-        {todos.map((todo) => (
-          <li key={todo.id} className="flex items-center justify-between mb-2">
-            {editingId === todo.id ? (
-              <input
-                className="border px-2 flex-1 mr-2"
-                value={editingText}
-                onChange={(e) => setEditingText(e.target.value)}
-              />
-            ) : (
-              <span
-                className={`cursor-pointer ${
-                  todo.is_complete ? "line-through text-gray-500" : ""
-                }`}
-              >
-                {todo.task}
-              </span>
-            )}
+      {loading && (
+        <div className="text-center py-4 text-gray-500">Loading...</div>
+      )}
 
-            <div className="flex gap-2 items-center">
-              {editingId === todo.id ? (
-                <>
-                  <button
-                    onClick={() => saveEdit(todo.id)}
-                    className="text-sm px-2 py-1 bg-green-500 text-white rounded"
-                    disabled={loading}
-                  >
-                    {loading ? 'Saving' : 'Save'}
-                  </button>
-                  <button
-                    onClick={() => setEditingId(null)}
-                    className="text-sm px-2 py-1 border rounded"
-                  >
-                    Cancel
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={() => startEdit(todo)}
-                    className="text-sm px-2 py-1 border rounded"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => toggleComplete(todo.id, todo.is_complete)}
-                    className="text-sm px-2 py-1 border rounded"
-                  >
-                    {todo.is_complete ? "Undo" : "Done"}
-                  </button>
-                  <button
-                    onClick={() => deleteTodo(todo.id)}
-                    className="text-red-500 text-sm"
-                  >
-                    Delete
-                  </button>
-                </>
-              )}
+      {loading && todos.length === 0 ? (
+        <div className="text-center py-8 text-gray-500">
+          Loading your tasks...
+        </div>
+      ) : (
+        <>
+          {todos.length === 0 ? (
+            <div className="py-4 text-gray-500 ">
+              No tasks yet. Add one above to get started!
             </div>
-          </li>
-        ))}
-      </ul>
+          ) : (
+            <ul className="space-y-3">
+              {todos.map((todo) => (
+                <li
+                  key={todo.id}
+                  className="bg-white rounded-2xl p-4 border border-gray-200"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 flex-1">
+                      {editingId === todo.id ? (
+                        <input
+                          type="text"
+                          value={editingText}
+                          onChange={(e) => setEditingText(e.target.value)}
+                          className="flex-1 bg-transparent  focus:outline-none py-1 px-2"
+                          aria-label="Edit task"
+                        />
+                      ) : (
+                        <span
+                          className={`flex-1 ${
+                            todo.is_complete
+                              ? "line-through text-gray-500"
+                              : "text-gray-900"
+                          }`}
+                        >
+                          {todo.task}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2 ml-4">
+                      {editingId === todo.id ? (
+                        <>
+                          <button
+                            onClick={() => saveEdit(todo.id)}
+                            disabled={loading}
+                            className="bg-green-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => setEditingId(null)}
+                            className="border border-gray-300 px-3 py-1 rounded-lg text-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => startEdit(todo)}
+                            className="text-blue-600 px-3 py-1 rounded-lg text-sm hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() =>
+                              toggleComplete(todo.id, todo.is_complete)
+                            }
+                            className="text-green-600 px-3 py-1 rounded-lg text-sm hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-green-500"
+                          >
+                            {todo.is_complete ? "Undo" : "Done"}
+                          </button>
+                          <button
+                            onClick={() => deleteTodo(todo.id)}
+                            className="text-red-600 px-3 py-1 rounded-lg text-sm hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500"
+                          >
+                            Delete
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
     </div>
   );
 }
